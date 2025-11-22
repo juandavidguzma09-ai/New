@@ -33,7 +33,7 @@ async def on_member_join(member):
         return
 
     embed = discord.Embed(
-        title="Welcome to lorest.es",
+        title="https://discord.gg/yUQUc3mS4f",
         description=f"""
 👋 Welcome {member.mention}
 
