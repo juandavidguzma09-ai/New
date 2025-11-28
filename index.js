@@ -1,7 +1,26 @@
 require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
 const { Client, RichPresence } = require("discord.js-selfbot-v13");
 const figlet = require("figlet");
 
+/* ---------------- PATCH PARA EVITAR CRASH EN RAILWAY ---------------- */
+try {
+    const patchPath = path.join(__dirname, "node_modules", "discord.js-selfbot-v13", "src", "managers", "ClientUserSettingManager.js");
+    let content = fs.readFileSync(patchPath, "utf8");
+
+    content = content.replace(
+        "all: data.friend_source_flags.all || false,",
+        "all: (data.friend_source_flags ? data.friend_source_flags.all : false),"
+    );
+
+    fs.writeFileSync(patchPath, content, "utf8");
+    console.log("Selfbot patched successfully.");
+} catch (e) {
+    console.log("Patch skipped:", e.message);
+}
+
+/* ---------------- CONFIG ---------------- */
 const CONFIG = {
     TOKEN: process.env.TOKEN,
     PREFIX: ".",
@@ -24,10 +43,12 @@ const CONFIG = {
     ]
 };
 
+/* ---------------- CLIENT ---------------- */
 const client = new Client();
 let currentStatusIndex = 0;
 let lastDeleted = {};
 
+/* ---------------- RPC ---------------- */
 function setRichPresence(customText) {
     const status = customText || CONFIG.STATUS_MESSAGES[currentStatusIndex];
 
@@ -35,7 +56,7 @@ function setRichPresence(customText) {
         const rpc = new RichPresence(client)
             .setApplicationId("1108131011735085196")
             .setType("STREAMING")
-            .setURL("https://twitch.tv/d3k")
+            .setURL("https://twitch.tv/dk3")
             .setName("nxg is here")
             .setDetails(status)
             .setState("active")
@@ -49,7 +70,6 @@ function setRichPresence(customText) {
         });
 
         console.log("Status updated: " + status);
-
     } catch (e) {
         console.log("RPC error: " + e.message);
     }
@@ -59,6 +79,7 @@ function setRichPresence(customText) {
     }
 }
 
+/* ---------------- READY ---------------- */
 client.on("ready", () => {
     console.log("Selfbot activated: " + client.user.tag);
 
@@ -69,10 +90,10 @@ client.on("ready", () => {
         setInterval(() => {
             setRichPresence();
         }, CONFIG.CHANGE_INTERVAL);
-
     }, 2000);
 });
 
+/* ---------------- SNIPE ---------------- */
 client.on("messageDelete", message => {
     if (message.partial) return;
     lastDeleted[message.channel.id] = {
@@ -82,6 +103,7 @@ client.on("messageDelete", message => {
     };
 });
 
+/* ---------------- COMMANDS ---------------- */
 client.on("messageCreate", async message => {
 
     if (message.author.id === client.user.id) {
@@ -125,7 +147,6 @@ client.on("messageCreate", async message => {
 
             const msg = await message.channel.send(mine.length + " messages deleted");
             setTimeout(() => msg.delete(), 3000);
-
         } catch {
             message.reply("error deleting");
         }
@@ -163,7 +184,7 @@ client.on("messageCreate", async message => {
 
         for (let i = 0; i < amount; i++) {
             await message.channel.send(text);
-            await new Promise(r => setTimeout(r, 350));
+            await new Promise(r => setTimeout(r, 300));
         }
     }
 
@@ -203,6 +224,7 @@ client.on("messageCreate", async message => {
     }
 });
 
+/* ---------------- ERRORS ---------------- */
 client.on("error", e => console.log("client error: " + e));
 
 console.log("Starting selfbot...");
