@@ -1,365 +1,290 @@
-from discord.ext import commands
-import discord
-import asyncio
-import os
-import sys
-import re
-import aiohttp
-from colorama import init, Fore, Style
-from pypresence import Presence
-import threading
-import time
+const { Client, RichPresence } = require('discord.js-selfbot-v13');
+const figlet = require('figlet');
 
-COMMAND_PREFIX = "." 
-DEFAULT_ACTIVITY = discord.Streaming(
-    name="saintexo",
-    url="https://discord.gg/HQFmHcARyj"
-)
-RPC_CLIENT_ID = "1441610635023618251"
+const CONFIG = {
+    TOKEN: 'TOKEN',
+    PREFIX: '.',
+    BUTTONS: {
+        gunslol: 'https://guns.lol/colddavi.555',
+        d3mxn: 'https://discord.gg/gyhFNxtBRy'
+    },
+    STATUS_MESSAGES: [
+        '???',
+        'dm for spam bot',
+        'heil d3k',
+        '#d3mxn on top',
+        'h3xo best nuke bot',
+        '$$$',
+    ],
+    CHANGE_INTERVAL: 5000,
+    AUTO_REACT_EMOJI: ' ',
+    LARGE_IMAGE: ' ',
+    EIGHTBALL_RESPONSES: [
+        "yes", "no", "maybe", "definitely", "ask me later", "don't count on it", "probably yes", "probably not", "i have no idea", "of course", "not a chance", "sure", "i doubt it", "obviously", "never", "could be"
+    ]
+};
 
-init(autoreset=True)
+const client = new Client();
+let currentStatusIndex = 0;
+let lastDeletedMessage = {};
 
-token = input("🔑 Enter your token: ").strip()
+function setRichPresence(customText = null) {
+    const currentStatus = customText ? customText : CONFIG.STATUS_MESSAGES[currentStatusIndex];
+    try {
+        const rpc = new RichPresence(client)
+            .setApplicationId('')
+            .setType('STREAMING')
+            .setURL('https://twitch.tv/x0202s')
+            .setName('nxg is here')
+            .setDetails(currentStatus)
+            .setState('active')
+            .setStartTimestamp(Date.now())
+            .addButton('gunslol', CONFIG.BUTTONS.gunslol)
+            .addButton('nxg', CONFIG.BUTTONS.nxg);
 
-class saintexoRPC:
-    def __init__(self, client_id):
-        self.client_id = client_id
-        self.rpc = None
-        self.running = True
+        if (CONFIG.LARGE_IMAGE) rpc.setAssetsLargeImage(CONFIG.LARGE_IMAGE);
 
-        self.details = "Fuck"
-        self.state = "streaming 6ix"
-        self.large_image = "large"
-        self.large_text = "SaintexoSelfbot"
-        self.small_image = "d"
-        self.small_text = "6ix Selfbot"
-        self.party_id = "saintexo-party-001"
-        self.party_size = [1, 5]
-        self.join_secret = "saintexo-join-key"
-        self.start_time = time.time()
+        client.user.setPresence({
+            activities: [rpc],
+            status: 'dnd'
+        });
 
-    def start(self):
-        def run():
-            while self.running:
-                try:
-                    if self.rpc is None:
-                        self.rpc = Presence(self.client_id)
-                        self.rpc.connect()
+        console.log(`status updated: ${currentStatus}`);
+    } catch (error) {
+        console.error('error:', error.message);
+    }
+    if (!customText) {
+        currentStatusIndex = (currentStatusIndex + 1) % CONFIG.STATUS_MESSAGES.length;
+    }
+}
 
-                    self.rpc.update(
-                        details=self.details,
-                        state=self.state,
-                        large_image=self.large_image,
-                        large_text=self.large_text,
-                        small_image=self.small_image,
-                        small_text=self.small_text,
-                        party_id=self.party_id,
-                        party_size=self.party_size,
-                        join=self.join_secret,
-                        start=self.start_time
-                    )
-                except Exception as e:
-                    print(f"[RPC Error] {e}")
-                time.sleep(15)
+client.on('ready', async () => {
+    console.log(`self: ${client.user.tag}`);
 
-        threading.Thread(target=run, daemon=True).start()
+    setTimeout(() => {
+        setRichPresence();
+        console.log('rich presence on');
+        setInterval(() => {
+            setRichPresence();
+        }, CONFIG.CHANGE_INTERVAL);
+    }, 2000);
+});
 
-kalium_rpc = saintexo(RPC_CLIENT_ID)
+client.on('messageDelete', async (message) => {
+    if (message.partial) return;
+    lastDeletedMessage[message.channel.id] = {
+        content: message.content,
+        author: message.author ? message.author.tag : "unknown",
+        avatar: message.author ? message.author.displayAvatarURL() : null,
+        timestamp: message.createdTimestamp
+    };
+});
 
-def startup_banner(user):
-    print(Fore.CYAN + "╔════════════════════════════════════════════════════════════════╗")
-    print("║" + Fore.LIGHTGREEN_EX + "                       🔐 Saintexo                 " + Fore.CYAN + "║")
-    print("║" + Fore.LIGHTBLUE_EX + "             Custom Presence | RPC | DM Utility           " + Fore.CYAN + "║")
-    print("╠════════════════════════════════════════════════════════════════╣")
-    print(f"║ 🤖 User: {Fore.LIGHTYELLOW_EX}{user.name}#{user.discriminator:<40}{Fore.CYAN}║")
-    print(f"║ 🆔 ID: {Fore.LIGHTYELLOW_EX}{user.id:<54}{Fore.CYAN}║")
-    print(f"║ 🎮 Presence: {Fore.LIGHTMAGENTA_EX}{DEFAULT_ACTIVITY.name:<44}{Fore.CYAN}║")
-    print(f"║ 💀 RPC: {Fore.LIGHTGREEN_EX}{kalium_rpc.state:<44}{Fore.CYAN}║")
-    print("╚════════════════════════════════════════════════════════════════╝" + Style.RESET_ALL)
-
-bot = commands.Bot(command_prefix=COMMAND_PREFIX, self_bot=True, help_command=None)
-
-@bot.event
-async def on_ready():
-    await bot.change_presence(activity=DEFAULT_ACTIVITY)
-    kalium_rpc.start()
-    startup_banner(bot.user)
-
-@bot.command()
-async def help(ctx):
-    await ctx.message.delete()
-    msg = (
-        "**🧠 Saintexo Commands:**\n\n"
-        "🎮 `.activity [type] [text]` – Set a custom activity. Types: playing, streaming, listening, watching\n"
-        "📝 `.embed` – Create a styled embed using prompts\n"
-        "📨 `.dm [guild_id] [amount] [message]` – Sends a DM to members max 50 (non-admins, open DMs only)\n"
-        "🧹 `.clear [amount]` – Deletes your messages\n"
-        "📦 `.emojis [guild_id] (opcional_path)` – Save all emojis and stickers from the server\n"
-        "📬 `.reopendm` – Reopens recent closed DMs by sending invisible messages\n"
-        "📣 `.say [amount] [message]` – Sends a message multiple times (works in both DMs and channels)\n"
-        "👋 `.logout` – Shut down Kalium\n"
-    )
-    await ctx.send(msg)
-
-@bot.command()
-async def activity(ctx, type: str = None, *, args: str = None):
-    await ctx.message.delete()
-
-    if not type or not args:
-        return await ctx.send("❌ Usage: `.activity [type] [text]`", delete_after=6)
-
-    type = type.lower()
-    rpc_types = {
-        "playing": "Playing",
-        "streaming": "Streaming",
-        "listening": "Listening to",
-        "watching": "Watching"
+client.on('messageCreate', async (message) => {
+    if (message.author.id === client.user.id) {
+        try {
+            await message.react(CONFIG.AUTO_REACT_EMOJI);
+        } catch (err) {}
     }
 
-    if type not in rpc_types:
-        return await ctx.send("❌ Invalid type. Use: playing, streaming, listening, watching", delete_after=6)
+    if (message.author.id !== client.user.id) return;
+    if (!message.content.startsWith(CONFIG.PREFIX)) return;
 
-    try:
-        if type == "playing":
-            activity = discord.Game(name=args)
-        elif type == "streaming":
-            activity = discord.Streaming(name=args, url="https://twitch.tv/")
-        elif type == "listening":
-            activity = discord.Activity(type=discord.ActivityType.listening, name=args)
-        elif type == "watching":
-            activity = discord.Activity(type=discord.ActivityType.watching, name=args)
+    const args = message.content.slice(CONFIG.PREFIX.length).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
 
-        await bot.change_presence(activity=activity)
+    if (command === 'ping') {
+        const ping = Math.round(client.ws.ping);
+        message.reply(`pong ${ping}ms`);
+    }
 
-        kalium_rpc.state = f"{rpc_types[type]} {args}"
+    if (command === 'userinfo') {
+        const user = client.user;
+        message.reply(
+            `id: ${user.id}\ntag: ${user.tag}\ncreated: <t:${Math.floor(user.createdTimestamp / 1000)}:R>`
+        );
+    }
 
-        await ctx.send(f"✅ Presence updated: `{rpc_types[type]}` – `{args}`")
+    if (command === 'serverinfo') {
+        if (!message.guild) {
+            message.reply('you can use this only in servers');
+            return;
+        }
+        const guild = message.guild;
+        message.reply(
+            `id: ${guild.id}\nmembers: ${guild.memberCount}\ncreated: <t:${Math.floor(guild.createdTimestamp / 1000)}:R>`
+        );
+    }
 
-    except Exception as e:
-        await ctx.send(f"❌ Error: {e}", delete_after=6)
+    if (command === 'purge') {
+        const amount = parseInt(args[0]);
+        if (!amount || isNaN(amount) || amount < 1 || amount > 100) {
+            message.reply('you must enter a number of messages to delete (1-100)');
+            return;
+        }
+        try {
+            const messages = await message.channel.messages.fetch({ limit: 100 });
+            const myMessages = messages.filter(m => m.author.id === client.user.id).first(amount);
+            for (let msg of myMessages) {
+                await msg.delete();
+            }
+            message.channel.send(`${myMessages.length} messages deleted`).then(m => setTimeout(() => m.delete(), 3000));
+        } catch (err) {
+            message.reply('an error occurred while trying to delete your messages');
+        }
+    }
 
-@bot.command()
-async def embed(ctx):
-    await ctx.message.delete()
+    if (command === 'setstatus') {
+        const statusText = args.join(' ');
+        if (!statusText) {
+            message.reply('you must write a status text');
+            return;
+        }
+        setRichPresence(statusText);
+        message.reply(`status changed to: ${statusText}`);
+    }
 
-    def check(m): return m.author == ctx.author and m.channel == ctx.channel
+    if (command === 'coinflip') {
+        const result = Math.random() < 0.5 ? "heads" : "tails";
+        message.reply(`the coin landed on: ${result}`);
+    }
 
-    try:
-        await ctx.send("📝 **Enter the title:** *(type `cancel` to abort)*")
-        title = await bot.wait_for("message", check=check, timeout=60)
-        if title.content.lower() == "cancel":
-            return await ctx.send("❌ Embed creation canceled.", delete_after=4)
-        await title.delete()
+    if (command === '8ball') {
+        if (args.length === 0) {
+            message.reply('you must ask a question');
+        } else {
+            const response = CONFIG.EIGHTBALL_RESPONSES[Math.floor(Math.random() * CONFIG.EIGHTBALL_RESPONSES.length)];
+            message.reply(`${response}`);
+        }
+    }
 
-        await ctx.send("📝 **Enter the description:** *(type `cancel` to abort)*")
-        desc = await bot.wait_for("message", check=check, timeout=60)
-        if desc.content.lower() == "cancel":
-            return await ctx.send("❌ Embed creation canceled.", delete_after=4)
-        await desc.delete()
+    if (command === 'roll') {
+        let max = parseInt(args[0]);
+        if (!max || isNaN(max) || max < 1) max = 6;
+        const result = Math.floor(Math.random() * max) + 1;
+        message.reply(`result: ${result} (1-${max})`);
+    }
 
-        formatted = (
-            f"╔══════════════════════════╗\n"
-            f"📣 **{title.content}**\n"
-            f"{desc.content}\n"
-            f"╚══════════════════════════╝"
-        )
+    if (command === 'spam') {
+        const amount = parseInt(args[args.length - 1]);
+        const spamMsg = args.slice(0, -1).join(' ');
+        if (!spamMsg || isNaN(amount) || amount < 1 || amount > 15) {
+            message.reply('usage: .spam <message> <amount> (maximum 15 messages)');
+            return;
+        }
+        for (let i = 0; i < amount; i++) {
+            await message.channel.send(spamMsg);
+            await new Promise(r => setTimeout(r, 400));
+        }
+    }
 
-        await ctx.send(formatted)
+    if (command === 'snipe') {
+        const sniped = lastDeletedMessage[message.channel.id];
+        if (!sniped) {
+            message.reply("no recently deleted messages in this channel");
+            return;
+        }
+        message.reply(
+            sniped.content ? sniped.content : "*empty message or embed*"
+        );
+    }
 
-    except asyncio.TimeoutError:
-        await ctx.send("⌛ Timeout. Try again.", delete_after=5)
-    except Exception as e:
-        await ctx.send(f"❌ Error: `{e}`", delete_after=6)
+    if (command === 'ascii') {
+        const asciiText = args.join(' ');
+        if (!asciiText) {
+            message.reply('you must write the text to convert');
+            return;
+        }
+        figlet(asciiText, (err, data) => {
+            if (err || !data) {
+                message.reply('an error occurred generating the ascii art');
+            } else {
+                if (data.length > 1990) {
+                    data = data.slice(0, 1990);
+                }
+                message.reply(`\`\`\`\n${data}\n\`\`\``);
+            }
+        });
+    }
 
-@bot.command()
-async def clear(ctx, amount: int = 5):
-    await ctx.message.delete()
-    deleted = 0
+    if (command === 'uwu') {
+        const uwuText = args.join(' ');
+        if (!uwuText) {
+            message.reply('you must write the text to convert');
+            return;
+        }
+        const uwu = uwuText
+            .replace(/(?:r|l)/g, 'w')
+            .replace(/(?:R|L)/g, 'W')
+            .replace(/n([aeiou])/g, 'ny$1')
+            .replace(/N([aeiou])/g, 'Ny$1')
+            .replace(/N([AEIOU])/g, 'NY$1')
+            .replace(/ove/g, 'uv')
+            .replace(/!+/g, ' owo!')
+            .concat(' uwu');
+        message.reply(uwu);
+    }
 
-    try:
-        async for msg in ctx.channel.history(limit=1000):
-            if msg.author == bot.user:
-                try:
-                    await msg.delete()
-                    deleted += 1
-                    await asyncio.sleep(0.25)
-                    if deleted >= amount:
-                        break
-                except discord.HTTPException:
-                    continue
-        await ctx.send(f"🧹 Cleared {deleted} messages.",
-        delete_after=11)
-    except Exception as e:
-        await ctx.send(f"❌ Error while clearing: {e}", delete_after=6)
+    if (command === 'reverse') {
+        const txt = args.join(' ');
+        if (!txt) return message.reply('you must write the text to reverse');
+        const reversed = txt.split('').reverse().join('');
+        message.reply(reversed);
+    }
 
-@bot.command()
-async def dm(ctx, guild_id: str, cantidad: str, *, mensaje: str):
-    await ctx.message.delete()
+    if (command === 'spoiler') {
+        const txt = args.join(' ');
+        if (!txt) return message.reply('you must write the text to put in spoiler');
+        const spoilered = txt.split('').map(c => c === ' ' ? ' ' : `||${c}||`).join('');
+        message.reply(spoilered);
+    }
 
-    if not guild_id.isdigit() or not cantidad.isdigit():
-        return await ctx.send("❌ Guild ID y cantidad deben ser números válidos.", delete_after=6)
+    if (command === 'hack') {
+        let user = message.mentions.users.first() || client.user;
+        let username = user ? user.username : args[0] || 'user';
+        message.reply(`starting hack on ${username}...`);
+        setTimeout(() => message.channel.send(`getting token of ${username}...`), 1500);
+        setTimeout(() => message.channel.send(`accessing database...`), 3000);
+        setTimeout(() => message.channel.send(`sending webhooks...`), 5000);
+        setTimeout(() => message.channel.send(`hack on ${username} completed`), 7000);
+    }
 
-    guild_id = int(guild_id)
-    cantidad = int(cantidad)
+    if (command === 'help') {
+        message.reply(
+            '**available commands:**\n' +
+            '`.ping` - shows the self ping\n' +
+            '`.userinfo` - shows your user info\n' +
+            '`.serverinfo` - shows server info\n' +
+            '`.purge <amount>` - deletes your last x messages (1-100)\n' +
+            '`.bio <text>` - changes your discord bio\n' +
+            '`.setstatus <text>` - changes your custom status\n' +
+            '`.coinflip` - flips a coin\n' +
+            '`.8ball <question>` - magic 8ball answers\n' +
+            '`.roll <max>` - rolls a dice (default 6)\n' +
+            '`.spam <message> <amount>` - sends repeated messages (max 15)\n' +
+            '`.snipe` - shows the last deleted message in the channel\n' +
+            '`.ascii <text>` - converts text to ascii art\n' +
+            '`.uwu <text>` - converts text to uwu format\n' +
+            '`.reverse <text>` - reverses text\n' +
+            '`.spoiler <text>` - sends text as spoiler letter by letter\n' +
+            '`.hack [@user]` - fake hack a user\n' +
+            '`.help` - shows this message'
+        );
+    }
+});
 
-    if cantidad > 50:
-        await ctx.send("⚠️ Máximo 50 usuarios. Enviando solo a los primeros 50...", delete_after=6)
-    cantidad = min(cantidad, 50)
+client.on('error', (error) => {
+    console.error('client error:', error);
+});
 
-    guild = discord.utils.get(bot.guilds, id=guild_id)
-    if not guild:
-        return await ctx.send("❌ No se encontró el servidor.", delete_after=5)
+console.log('starting self... (by pansi)');
+client.login(CONFIG.TOKEN).catch(error => {
+    console.error('login error:', error);
+    console.log('check if your token is correct');
+});
 
-    sent, skipped, failed = 0, 0, 0
-    members = [
-        m for m in guild.members
-        if not m.bot and m != bot.user and not m.guild_permissions.administrator
-    ]
-    for member in members[:cantidad]:
-        try:
-            await member.send(mensaje)
-            print(f"✅ Sent to {member}")
-            sent += 1
-        except discord.Forbidden:
-            print(f"⛔ Cannot DM {member} (forbidden - likely has DMs closed)")
-            skipped += 1
-        except discord.HTTPException:
-            print(f"❌ HTTP error with {member}")
-            failed += 1
-        except Exception as e:
-            print(f"❌ Error with {member}: {e}")
-            failed += 1
-
-        await asyncio.sleep(0.75)  # evita rate limit
-
-    await ctx.send(
-        f"📨 Finalizado.\n"
-        f"✅ Enviados: {sent}\n"
-        f"⛔ DMs cerrados o admin: {skipped}\n"
-        f"❌ Fallidos: {failed}",
-        delete_after=11
-    )
-
-def safe_filename(name):
-    return re.sub(r'[<>:"/\\|?*]', '_', name)
-
-@bot.command()
-async def emojis(ctx, guild_id: int, *, path: str = None):
-    await ctx.message.delete()
-
-    guild = discord.utils.get(bot.guilds, id=guild_id)
-    if not guild:
-        return await ctx.send("❌ Guild not found.", delete_after=5)
-
-    try:
-        base_dir = os.path.abspath(path or os.path.join("stickers", str(guild.id)))
-        if not os.path.isdir(base_dir):
-            os.makedirs(base_dir, exist_ok=True)
-    except Exception:
-        base_dir = os.path.abspath(os.path.join("stickers", str(guild.id)))
-
-    emoji_dir = os.path.join(base_dir, "emojis")
-    sticker_dir = os.path.join(base_dir, "stickers")
-    os.makedirs(emoji_dir, exist_ok=True)
-    os.makedirs(sticker_dir, exist_ok=True)
-
-    total_emojis = 0
-    total_stickers = 0
-
-    async with aiohttp.ClientSession() as session:
-        for emoji in guild.emojis:
-            ext = "gif" if emoji.animated else "png"
-            filename = safe_filename(emoji.name)
-            url = f"https://cdn.discordapp.com/emojis/{emoji.id}.{ext}"
-            path = os.path.join(emoji_dir, f"{filename}.{ext}")
-            try:
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        with open(path, "wb") as f:
-                            f.write(await resp.read())
-                        total_emojis += 1
-            except Exception as e:
-                print(f"❌ Failed emoji {emoji.name}: {e}")
-
-        for sticker in guild.stickers:
-            filename = safe_filename(sticker.name)
-            url = str(sticker.url)
-            path = os.path.join(sticker_dir, f"{filename}.png")
-            try:
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        with open(path, "wb") as f:
-                            f.write(await resp.read())
-                        total_stickers += 1
-            except Exception as e:
-                print(f"❌ Failed sticker {sticker.name}: {e}")
-
-    await ctx.send(f"📦 Saved {total_emojis} emojis and {total_stickers} stickers to: `{base_dir}`",
-        delete_after=11)
-
-@bot.command()
-async def reopendm(ctx):
-    await ctx.message.delete()
-
-    reopened = 0
-    skipped = 0
-
-    targets = [
-        dm for dm in bot.private_channels
-        if isinstance(dm, discord.DMChannel) and dm.recipient and not dm.recipient.bot
-    ]
-
-    async def try_send(dm):
-        nonlocal reopened, skipped
-        try:
-            await dm.send("\u200b")
-            reopened += 1
-        except Exception:
-            skipped += 1
-
-    await asyncio.gather(*(try_send(dm) for dm in targets))
-
-    await ctx.send(
-        f" Attempted to reopen {reopened + skipped} DMs.\n"
-        f" Success: {reopened}\n"
-        f" Skipped/Failed: {skipped}",
-        delete_after=11
-    )
-
-@bot.command()
-async def say(ctx, cantidad: int, *, mensaje: str):
-    await ctx.message.delete()
-
-    if cantidad > 25:
-        return await ctx.send("⚠️ Max 25 messages allowed per use.", delete_after=6)
-
-    destino = ctx.channel
-
-    sent = 0
-    for _ in range(cantidad):
-        try:
-            await destino.send(mensaje)
-            sent += 1
-        except discord.HTTPException:
-            break
-        except Exception as e:
-            return await ctx.send(f"❌ Stopped after {sent} messages.\nError: `{e}`", delete_after=6)
-
-    try:
-        await ctx.send(f"📣 Sent `{sent}` messages.", delete_after=5)
-    except:
-        pass
-
-@bot.command()
-async def logout(ctx):
-    await ctx.message.delete()
-    await ctx.send("👋 Kalium shutting down...")
-    await bot.close()
-
-while True:
-    try:
-        bot.run(token)
-    except Exception as e:
-        print(f"❌ Bot crashed: {e}")
-        time.sleep(10)
-        print("🔁 Attempting to reconnect...")
+process.on('SIGINT', () => {
+    console.log('\nshutting down self...');
+    client.destroy();
+    process.exit(0);
+});
