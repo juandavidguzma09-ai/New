@@ -1,4 +1,21 @@
-git+https://github.com/dolfies/discord.py-self.git
-aiohttp
-colorama
-pypresence
+{
+  "name": "d3k-self",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "discord",
+    "selfbot",
+    "discord.js",
+    "bot",
+    "automation"
+  ],
+  "author": "d3lizzk",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js-selfbot-v13": "^2.14.12",
+    "figlet": "^1.7.0"
+  }
+}
