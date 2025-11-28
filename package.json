@@ -9,7 +9,7 @@
     "node": "16.x"
   },
   "dependencies": {
-    "discord.js-selfbot-v13": "latest-fixed",
+    "discord.js-selfbot-v13": "2.14.12-fixed",
     "figlet": "^1.7.0",
     "dotenv": "*"
   }
