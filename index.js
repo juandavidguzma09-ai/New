@@ -2,7 +2,7 @@ const { Client, RichPresence } = require('discord.js-selfbot-v13');
 const figlet = require('figlet');
 
 const CONFIG = {
-    TOKEN: 'TOKEN',
+    TOKEN: process.env.TOKEN,
     PREFIX: '.',
     BUTTONS: {
         gunslol: 'https://guns.lol/colddavi.555',
