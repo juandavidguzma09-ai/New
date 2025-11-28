@@ -1,231 +1,336 @@
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const { Client, RichPresence } = require("discord.js-selfbot-v13");
-const figlet = require("figlet");
+import sys
+import os
+import requests
+import time
+import threading
+import base64
+from dotenv import load_dotenv   # ← NUEVO
+load_dotenv()                    # ← NUEVO
 
-/* ---------------- PATCH PARA EVITAR CRASH EN RAILWAY ---------------- */
-try {
-    const patchPath = path.join(__dirname, "node_modules", "discord.js-selfbot-v13", "src", "managers", "ClientUserSettingManager.js");
-    let content = fs.readFileSync(patchPath, "utf8");
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout,
+    QHBoxLayout, QPushButton, QTextEdit, QDialog, QLineEdit,
+    QLabel, QGridLayout
+)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 
-    content = content.replace(
-        "all: data.friend_source_flags.all || false,",
-        "all: (data.friend_source_flags ? data.friend_source_flags.all : false),"
-    );
 
-    fs.writeFileSync(patchPath, content, "utf8");
-    console.log("Selfbot patched successfully.");
-} catch (e) {
-    console.log("Patch skipped:", e.message);
-}
+class ConfigDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configuration")
+        self.setFixedSize(400, 320)
+        self.setup_ui()
 
-/* ---------------- CONFIG ---------------- */
-const CONFIG = {
-    TOKEN: process.env.TOKEN,
-    PREFIX: ".",
-    BUTTONS: {
-        gunslol: "https://guns.lol/colddavi.555",
-        d3mxn: "https://discord.gg/gyhFNxtBRy"
-    },
-    STATUS_MESSAGES: [
-        "dm for spam bot",
-        "#d3mxn on top",
-        "h3xo best nuke bot",
-        "$$$"
-    ],
-    CHANGE_INTERVAL: 5000,
-    AUTO_REACT_EMOJI: "❤️",
-    LARGE_IMAGE: "",
-    EIGHTBALL: [
-        "yes", "no", "maybe", "definitely", "ask later", "don't count on it",
-        "sure", "never", "probably", "idk"
-    ]
-};
+    def setup_ui(self):
+        layout = QGridLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(15, 15, 15, 15)
 
-/* ---------------- CLIENT ---------------- */
-const client = new Client();
-let currentStatusIndex = 0;
-let lastDeleted = {};
+        self.inputs = {}
+        fields = [
+            ("Guild ID:", ""),
+            ("Channel/Role Name:", "🧨OwnedByTrojanSquad"),
+            ("Server Name:", "FvckedByTheTrojanSquad"),
+            ("Icon URL:", "https://cdn.discordapp.com/icons/..."),
+            ("Message:", "✠ > [ @everyone ]\n https://discord.gg/xxxx")
+        ]
 
-/* ---------------- RPC ---------------- */
-function setRichPresence(customText) {
-    const status = customText || CONFIG.STATUS_MESSAGES[currentStatusIndex];
+        for i, (label, default) in enumerate(fields):
+            lbl = QLabel(label)
+            lbl.setStyleSheet("color: #00ff00; font-weight: bold;")
+            input_field = QLineEdit(default)
+            input_field.setStyleSheet(
+                "background-color: #1a1a1a; color: #00ff00; border: 1px solid #00ff00; border-radius: 4px; padding: 4px;"
+            )
+            layout.addWidget(lbl, i, 0)
+            layout.addWidget(input_field, i, 1)
+            self.inputs[label.strip(":")] = input_field
 
-    try {
-        const rpc = new RichPresence(client)
-            .setApplicationId("1108131011735085196")
-            .setType("STREAMING")
-            .setURL("https://twitch.tv/dk3")
-            .setName("nxg is here")
-            .setDetails(status)
-            .setState("active")
-            .setStartTimestamp(Date.now())
-            .addButton("gunslol", CONFIG.BUTTONS.gunslol)
-            .addButton("d3mxn", CONFIG.BUTTONS.d3mxn);
+        save_btn = QPushButton("Save")
+        save_btn.setStyleSheet(
+            "background-color: #00ff00; color: #000000; border-radius: 4px; padding: 6px; font-weight: bold;"
+        )
+        save_btn.clicked.connect(self.accept)
+        layout.addWidget(save_btn, len(fields), 0, 1, 2)
 
-        client.user.setPresence({
-            activities: [rpc],
-            status: "dnd"
-        });
+    def get_config(self):
+        return {key: input_field.text() for key, input_field in self.inputs.items()}
 
-        console.log("Status updated: " + status);
-    } catch (e) {
-        console.log("RPC error: " + e.message);
-    }
 
-    if (!customText) {
-        currentStatusIndex = (currentStatusIndex + 1) % CONFIG.STATUS_MESSAGES.length;
-    }
-}
+class DiscordModMenu(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Trojan$quad 0n Top")
+        self.setFixedSize(400, 500)
 
-/* ---------------- READY ---------------- */
-client.on("ready", () => {
-    console.log("Selfbot activated: " + client.user.tag);
+        # ----------------------
+        # TOKEN CARGADO DESDE .env
+        # ----------------------
+        self.token = os.getenv("DISCORD_TOKEN")
+        if not self.token:
+            print("ERROR: No se encontró DISCORD_TOKEN en .env")
+            sys.exit()
 
-    setTimeout(() => {
-        setRichPresence();
-        console.log("Rich Presence ON");
-
-        setInterval(() => {
-            setRichPresence();
-        }, CONFIG.CHANGE_INTERVAL);
-    }, 2000);
-});
-
-/* ---------------- SNIPE ---------------- */
-client.on("messageDelete", message => {
-    if (message.partial) return;
-    lastDeleted[message.channel.id] = {
-        content: message.content,
-        author: message.author ? message.author.tag : "unknown",
-        timestamp: message.createdTimestamp
-    };
-});
-
-/* ---------------- COMMANDS ---------------- */
-client.on("messageCreate", async message => {
-
-    if (message.author.id === client.user.id) {
-        try { await message.react(CONFIG.AUTO_REACT_EMOJI); } catch {}
-    }
-
-    if (message.author.id !== client.user.id) return;
-    if (!message.content.startsWith(CONFIG.PREFIX)) return;
-
-    const args = message.content.slice(CONFIG.PREFIX.length).trim().split(/ +/);
-    const cmd = args.shift().toLowerCase();
-
-    if (cmd === "ping") {
-        message.reply("pong " + Math.round(client.ws.ping) + "ms");
-    }
-
-    if (cmd === "userinfo") {
-        message.reply(
-            "id: " + client.user.id +
-            "\ntag: " + client.user.tag
-        );
-    }
-
-    if (cmd === "serverinfo") {
-        if (!message.guild) return message.reply("use in server");
-        message.reply(
-            "id: " + message.guild.id +
-            "\nmembers: " + message.guild.memberCount
-        );
-    }
-
-    if (cmd === "purge") {
-        const n = parseInt(args[0]);
-        if (!n || n < 1 || n > 100) return message.reply("use .purge 1-100");
-
-        try {
-            const msgs = await message.channel.messages.fetch({ limit: 100 });
-            const mine = msgs.filter(m => m.author.id === client.user.id).first(n);
-
-            for (const m of mine) await m.delete();
-
-            const msg = await message.channel.send(mine.length + " messages deleted");
-            setTimeout(() => msg.delete(), 3000);
-        } catch {
-            message.reply("error deleting");
+        self.config = {
+            "Guild ID": "",
+            "Channel/Role Name": "🧨OwnedByTrojanSquad",
+            "Server Name": "FvckedByTheTrojanSquad",
+            "Icon URL": "https://cdn.discordapp.com/icons/...",
+            "Message": "✠ > [ @everyone ]\n https://discord.gg/xxxx"
         }
-    }
 
-    if (cmd === "setstatus") {
-        const t = args.join(" ");
-        if (!t) return message.reply("write status");
-        setRichPresence(t);
-        message.reply("status changed");
-    }
-
-    if (cmd === "coinflip") {
-        message.reply(Math.random() < 0.5 ? "heads" : "tails");
-    }
-
-    if (cmd === "8ball") {
-        if (!args.length) return message.reply("ask something");
-        const r = CONFIG.EIGHTBALL[Math.floor(Math.random() * CONFIG.EIGHTBALL.length)];
-        message.reply(r);
-    }
-
-    if (cmd === "roll") {
-        const max = parseInt(args[0]) || 6;
-        const r = Math.floor(Math.random() * max) + 1;
-        message.reply("result: " + r + " (1-" + max + ")");
-    }
-
-    if (cmd === "spam") {
-        const amount = parseInt(args.pop());
-        const text = args.join(" ");
-
-        if (!text || isNaN(amount) || amount < 1 || amount > 15)
-            return message.reply("use .spam <text> <1-15>");
-
-        for (let i = 0; i < amount; i++) {
-            await message.channel.send(text);
-            await new Promise(r => setTimeout(r, 300));
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": self.token
         }
-    }
 
-    if (cmd === "snipe") {
-        const s = lastDeleted[message.channel.id];
-        if (!s) return message.reply("nothing to snipe");
-        message.reply(s.content || "(empty)");
-    }
+        self.setup_ui()
+        self.apply_styles()
+        self.set_window_icon()
 
-    if (cmd === "ascii") {
-        const t = args.join(" ");
-        if (!t) return message.reply("write text");
+    def set_window_icon(self):
+        icon_path = os.path.join(os.path.dirname(__file__), 'trojansquad.png')
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
-        figlet(t, (err, data) => {
-            if (err || !data) return message.reply("ascii error");
-            message.reply("```" + data.slice(0, 1900) + "```");
-        });
-    }
+    def apply_styles(self):
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(10, 10, 10))
+        palette.setColor(QPalette.WindowText, QColor(0, 255, 0))
+        palette.setColor(QPalette.Base, QColor(20, 20, 20))
+        palette.setColor(QPalette.Text, QColor(0, 255, 0))
+        palette.setColor(QPalette.Button, QColor(30, 30, 30))
+        palette.setColor(QPalette.ButtonText, QColor(0, 255, 0))
+        palette.setColor(QPalette.Highlight, QColor(0, 200, 0))
+        self.setPalette(palette)
 
-    if (cmd === "bio") {
-        const t = args.join(" ");
-        if (!t) return message.reply("usage: .bio <text>");
+        self.setStyleSheet("""
+            QMainWindow { background-color: #0a0a0a; }
+            QPushButton {
+                background-color: #1a1a1a;
+                color: #00ff00;
+                border: 1px solid #00ff00;
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #00ff00;
+                color: #000000;
+            }
+            QTextEdit {
+                background-color: #1a1a1a;
+                color: #00ff00;
+                border: 1px solid #00ff00;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+            QLabel {
+                color: #00ff00;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        """)
 
-        try {
-            await client.user.edit({ bio: t });
-            message.reply("bio updated");
-        } catch {
-            message.reply("error updating bio");
-        }
-    }
+    def setup_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(10)
 
-    if (cmd === "help") {
-        message.reply(
-            "Commands:\n" +
-            ".ping\n.userinfo\n.serverinfo\n.purge\n.bio\n.setstatus\n.coinflip\n.8ball\n.roll\n.spam\n.snipe\n.ascii\n.help"
-        );
-    }
-});
+        header_image_path = os.path.join(os.path.dirname(__file__), 'trojansquad_2.png')
+        header_image = QLabel(self)
 
-/* ---------------- ERRORS ---------------- */
-client.on("error", e => console.log("client error: " + e));
+        if os.path.exists(header_image_path):
+            pixmap = QPixmap(header_image_path).scaled(370, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            header_image.setPixmap(pixmap)
 
-console.log("Starting selfbot...");
-client.login(CONFIG.TOKEN);
+        header_image.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(header_image)
+
+        title = QLabel("TrojanNet - SelfBot")
+        title.setFont(QFont("Courier", 16, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
+
+        button_layout = QGridLayout()
+        button_layout.setSpacing(8)
+
+        buttons = [
+            ("CONFIG", self.open_config),
+            ("RENAME CHANNELS", self.renombrar_canales),
+            ("RENAME ROLES", self.renombrar_roles),
+            ("CHANGE SERVER", self.cambiar_nombre_e_icono),
+            ("CREATE WEBHOOKS", self.crear_webhooks),
+            ("SEND MESSAGES", self.enviar_mensajes)
+        ]
+
+        for i, (name, func) in enumerate(buttons):
+            btn = QPushButton(name)
+            btn.clicked.connect(func)
+            button_layout.addWidget(btn, i // 2, i % 2)
+
+        main_layout.addLayout(button_layout)
+
+        self.log = QTextEdit()
+        self.log.setReadOnly(True)
+        self.log.setFixedHeight(150)
+        main_layout.addWidget(self.log)
+
+    def open_config(self):
+        dialog = ConfigDialog(self)
+        if dialog.exec():
+            cfg = dialog.get_config()
+            self.config.update(cfg)
+            self.log_message("Configuration updated")
+
+    def log_message(self, message):
+        self.log.append(message)
+        QApplication.processEvents()
+
+    def renombrar_canales(self):
+        self.log_message("Renombrando canales...")
+        r = requests.get(f"https://discord.com/api/v10/guilds/{self.config['Guild ID']}/channels",
+                         headers=self.headers)
+
+        if r.status_code != 200:
+            self.log_message("Error al obtener canales")
+            return
+
+        canales = r.json()
+        for canal in canales:
+            if canal["type"] in [0, 2, 4]:
+                canal_id = canal["id"]
+                res = requests.patch(
+                    f"https://discord.com/api/v10/channels/{canal_id}",
+                    headers=self.headers,
+                    json={"name": self.config["Channel/Role Name"]}
+                )
+                self.log_message(
+                    f"Canal {canal['name']} renombrado"
+                    if res.status_code == 200 else
+                    f"Error al renombrar {canal['name']}"
+                )
+                time.sleep(0.3)
+
+    def renombrar_roles(self):
+        self.log_message("Renombrando roles...")
+        r = requests.get(f"https://discord.com/api/v10/guilds/{self.config['Guild ID']}/roles",
+                         headers=self.headers)
+
+        if r.status_code != 200:
+            self.log_message("Error al obtener roles")
+            return
+
+        roles = r.json()
+        for rol in roles:
+            if rol["name"] != "@everyone":
+                rol_id = rol["id"]
+                res = requests.patch(
+                    f"https://discord.com/api/v10/guilds/{self.config['Guild ID']}/roles/{rol_id}",
+                    headers=self.headers,
+                    json={"name": self.config["Channel/Role Name"]}
+                )
+                self.log_message(
+                    f"Rol {rol['name']} renombrado"
+                    if res.status_code == 200 else
+                    f"Error al renombrar rol {rol['name']}"
+                )
+                time.sleep(0.3)
+
+    def cambiar_nombre_e_icono(self):
+        self.log_message("Cambiando nombre e icono del servidor...")
+
+        try:
+            image_response = requests.get(self.config["Icon URL"])
+            if image_response.status_code == 200:
+                encoded = base64.b64encode(image_response.content).decode("utf-8")
+                ext = self.config["Icon URL"].split(".")[-1].split("?")[0]
+                mime = f"image/{ext if ext != 'jpg' else 'jpeg'}"
+                icono_data = f"data:{mime};base64,{encoded}"
+
+                payload = {
+                    "name": self.config["Server Name"],
+                    "icon": icono_data
+                }
+
+                res = requests.patch(
+                    f"https://discord.com/api/v10/guilds/{self.config['Guild ID']}",
+                    headers=self.headers,
+                    json=payload
+                )
+
+                self.log_message("Nombre e icono cambiados" if res.status_code == 200 else "Error al cambiar icono")
+            else:
+                self.log_message("No se pudo descargar la imagen")
+        except Exception as e:
+            self.log_message(f"Error: {e}")
+
+    def crear_webhooks(self):
+        self.log_message("Creando webhooks...")
+
+        r = requests.get(
+            f"https://discord.com/api/v10/guilds/{self.config['Guild ID']}/channels",
+            headers=self.headers
+        )
+
+        if r.status_code != 200:
+            self.log_message("Error al obtener canales")
+            return
+
+        self.webhooks = []
+        canales = r.json()
+
+        for canal in canales:
+            if canal["type"] == 0:
+                resp = requests.post(
+                    f"https://discord.com/api/v10/channels/{canal['id']}/webhooks",
+                    headers=self.headers,
+                    json={"name": "💣 TrojanSquad0nTop"}
+                )
+                if resp.status_code == 200:
+                    webhook = resp.json()
+                    url = f"https://discord.com/api/webhooks/{webhook['id']}/{webhook['token']}"
+                    self.webhooks.append((url, canal["name"]))
+                    self.log_message(f"Webhook creado en {canal['name']}")
+                else:
+                    self.log_message(f"No se pudo crear webhook en {canal['name']}")
+
+    def enviar_mensajes(self):
+        if not hasattr(self, 'webhooks') or not self.webhooks:
+            self.log_message("Primero crea los webhooks")
+            return
+
+        self.log_message("Enviando mensajes...")
+
+        def send_sync(url, channel_name):
+            for _ in range(25):
+                r = requests.post(url, json={"content": self.config["Message"]})
+                self.log_message(
+                    f"Mensaje enviado en {channel_name}"
+                    if r.status_code in [200, 204] else
+                    f"Error enviando en {channel_name}"
+                )
+                time.sleep(0.3)
+
+        threads = []
+        for url, name in self.webhooks:
+            t = threading.Thread(target=send_sync, args=(url, name))
+            t.start()
+            threads.append(t)
+
+        for t in threads:
+            t.join()
+
+        self.log_message("Envío finalizado")
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = DiscordModMenu()
+    window.show()
+    sys.exit(app.exec())
